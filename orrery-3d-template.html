@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+
+attribute vec4 a_vPosition;
+attribute vec3 a_vNormal;
+attribute vec2 a_TextureCoord;
+uniform mat4 u_mvMatrix;
+
+varying vec4 v_fColor;
+
+uniform vec4 u_ambientProduct, u_diffuseProduct, u_specularProduct;
+
+uniform mat4 u_projectionMatrix;
+uniform vec4 u_lightPosition;
+uniform float u_shininess;
+uniform mat3 u_nMatrix;
+
+varying vec2 v_TextureCoord;
+
+void
+main()
+{
+    // transform vertex position from object space to eye space
+    v_TextureCoord = a_TextureCoord;
+    vec3 pos = (u_mvMatrix * a_vPosition).xyz;
+
+    vec3 lightPositionES;
+
+
+    // assumed light position is already in the eye space
+    lightPositionES = u_lightPosition.xyz;
+
+    vec3 L = normalize( lightPositionES - pos );
+
+    vec3 E = normalize( -pos ); // eye is at (0, 0, 0)
+
+    vec3 H = normalize(L + E);
+
+    // transform vertex normal into the eye space
+    // assume no non-uniform scaling!
+    // otherwise compute and use normalMatrix in WebGL
+
+    vec3 N = normalize( u_nMatrix * a_vNormal );
+    // note that teh reflect function returns: L-2(L.N)*N
+    vec3 R = normalize( -reflect(L, N));
+
+    // compute terms in the illumination equation
+    // ambient
+    vec4 ambient = u_ambientProduct;
+    float Kd = max( dot(L, N), 0.0 );
+    //diffuse
+    vec4 diffuse = Kd * u_diffuseProduct;
+    //specular
+    float Ks = pow( max(dot(N, H), 0.0), u_shininess );
+    vec4 specular = Ks * u_specularProduct;
+    if( dot(L, N) < 0.0 ) {
+      specular = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+
+    gl_Position = u_projectionMatrix * u_mvMatrix * a_vPosition;
+    v_fColor = ambient + diffuse + specular;
+    v_fColor.a = 1.0;
+
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+uniform vec3 u_color;
+varying vec4 v_fColor;
+uniform bool u_UseLighting;
+
+varying vec2 v_TextureCoord;
+uniform sampler2D u_TextureSampler;
+
+void
+main()
+{
+    vec4 textureColor = texture2D(u_TextureSampler, vec2(v_TextureCoord.s, v_TextureCoord.t));
+    if(!u_UseLighting){
+      gl_FragColor = v_fColor;
+    }
+    else {
+      gl_FragColor = vec4(textureColor.rgb * v_fColor.rgb, textureColor.a);
+    }
+}
+</script>
+
+<script type="text/javascript" src="../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+<script type="text/javascript" src="../Common/MV.js"></script>
+<script type="text/javascript" src="trackball.js"></script>
+<script type="text/javascript" src="orrery-3d-template.js"></script>
+</head>
+
+<body>
+<canvas id="gl-canvas" width="1024" height="512">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+
+<br><br>
+<button id="IncDPF">Inc DPF</button>
+<button id="DecDPF">Dec DPF</button>
+
+<form>
+    <input type="radio" name="function" id="orbon" checked>Orbit On
+    <input type="radio" name="function" id="orboff">Orbit Off
+</form>
+<!---<br><br>--->
+<form>
+    <input type="radio" name="function" id="dayon" checked>Day On
+    <input type="radio" name="function" id="dayoff">Day Off
+</form>
+<!---<br><br>--->
+<form>
+    <input type="radio" name="function" id="animon" checked>Animation On
+    <input type="radio" name="function" id="animoff">Animation Off
+</form>
+<!--- The statistics are printed here. --->
+<p id="printDay"></p>
+
+<div>
+  red 0 <input id="RedSlider" type="range" min="0" max="1" step=".01" value="0" />
+  255
+</div>
+<div>
+  green 0 <input id="GreenSlider" type="range" min="0" max="1" step=".01" value="0" />
+  255
+</div>
+<div>
+  blue 0 <input id="BlueSlider" type="range" min="0" max="1" step=".01" value="0" />
+  255
+</div>
+
+</body>
+</html>
